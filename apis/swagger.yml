@@ -1056,3 +1056,92 @@ definitions:
         type: "boolean"
       Tty:
         type: "boolean"
+
+  ContainerJSON:
+    description: |
+      ContainerJSON contains response of Engine API:
+      GET "/containers/{name:.*}/json""
+    type: "object"
+    properties:
+      ID:
+        type: "string"
+      Created:
+        type: "string"
+      Path:
+        type: "string"
+      Args:
+        type: "array"
+        items:
+          type: "string"
+      State:
+        type: "object"
+        $ref: '#/definitions/ContainerState'
+      Image:
+        type: "string"
+      ResolvConfPath:
+        type: "string"
+      HostnamePath:
+        type: "string"
+      HostsPath:
+        type: "string"
+      LogPath:
+        type: "string"
+      Name:
+        type: "string"
+      RestartCount:
+        type: "integer"
+      Driver:
+        type: "string"
+      MountLabel:
+        type: "string"
+      ProcessLabel:
+        type: "string"
+      AppArmorProfile:
+        type: "string"
+      ExecIDs:
+        type: "array"
+        items:
+          type: "string"
+      HostConfig:
+        type: "object"
+        $ref: '#/definitions/HostConfig'
+      SizeRw:
+        type: "integer"
+        format: "int64"
+      SizeRootFs:
+        type: "integer"
+        format: "int64"
+      HostRootPath:
+        type: "string"
+
+  ContainerState:
+    description: |
+      ContainerState houses container status, start and stop information
+    type: "object"
+    properties:
+      StartedAt:
+        type: "string"
+        format: "dateTime"
+        description: "Date/Time the container was started."
+      Status:
+        type: "integer"
+        enum:
+          - "CREATED"
+          - "RUNNING"
+          - "PAUSED"
+          - "RESTARTING"
+          - "OOMKILLED"
+          - "REMOVALINPROGRESS"
+          - "STOPPING"
+          - "STOPPED"
+          - "DEAD"
+      FinishedAt:
+        type: "string"
+        format: "dateTime"
+        description: "Date/Time the container was finished."
+      Pid:
+        type: "integer"
+      ExitCodeValue:
+        type: "integer"
+      ErrorMsg:
+        type: "string"
