@@ -734,7 +734,7 @@ paths:
         - $ref: "#/parameters/id"
       tags: ["Volume"]
 
-    delete: 
+    delete:
       summary: "Delete a volume"
       operationId: "VolumeDelete"
       responses:
@@ -869,7 +869,7 @@ definitions:
         type: "integer"
 
   ContainerCreateConfig:
-    description: | 
+    description: |
       ContainerCreateConfig is used for API "POST /containers/create".
       It wraps all kinds of config used in container creation.
       It can be used to encode client params in client and unmarshal request body in daemon side.
@@ -885,7 +885,7 @@ definitions:
   ContainerConfig:
     type: "object"
     description: "Configuration for a container that is portable between hosts"
-    required: 
+    required:
       - Image
     properties:
       Hostname:
@@ -1000,7 +1000,7 @@ definitions:
         type: "array"
         items:
           type: "string"
-  
+
   ContainerCreateResp:
     description: "response returned by daemon when container create successfully"
     type: "object"
@@ -1511,7 +1511,7 @@ definitions:
         type: "string"
       HostConfig:
         description: |
-          In Moby's API, HostConfig field in Container struct has following type 
+          In Moby's API, HostConfig field in Container struct has following type
           struct { NetworkMode string `json:",omitempty"` }
           In Pouch, we need to pick runtime field in HostConfig from daemon side to judge runtime type,
           So Pouch changes this type to be the complete HostConfig.
@@ -1798,9 +1798,9 @@ definitions:
     example:
       Detach: false
       Tty: false
-  
+
   ContainerJSON:
-    description: | 
+    description: |
       ContainerJSON contains response of Engine API:
       GET "/containers/{id}/json"
     type: "object"
