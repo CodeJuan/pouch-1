@@ -79,7 +79,7 @@ func setupFlags(cmd *cobra.Command) {
 	flagSet.StringVar(&cfg.DefaultRuntime, "default-runtime", "runc", "Default OCI Runtime")
 	flagSet.BoolVar(&cfg.IsLxcfsEnabled, "enable-lxcfs", false, "Enable Lxcfs to make container to isolate /proc")
 	flagSet.StringVar(&cfg.LxcfsBinPath, "lxcfs", "/usr/local/bin/lxcfs", "Specify the path of lxcfs binary")
-	flagSet.StringVar(&cfg.LxcfsHome, "lxcfs-home", "/var/lib/lxc/lxcfs", "Specify the mount dir of lxcfs")
+	flagSet.StringVar(&cfg.LxcfsHome, "lxcfs-home", "/var/lib/lxcfs", "Specify the mount dir of lxcfs")
 	flagSet.StringVar(&cfg.DefaultRegistry, "default-registry", "registry.hub.docker.com/library/", "Default Image Registry")
 	flagSet.StringVar(&cfg.ImageProxy, "image-proxy", "", "Http proxy to pull image")
 	flagSet.StringVar(&cfg.QuotaDriver, "quota-driver", "", "Set quota driver(grpquota/prjquota), if not set, it will set by kernel version")
@@ -157,7 +157,6 @@ func runDaemon() error {
 	if err := checkLxcfsCfg(); err != nil {
 		return err
 	}
-	processes = setLxcfsProcess(processes)
 	defer processes.StopAll()
 
 	if err := processes.RunAll(); err != nil {
@@ -219,11 +218,6 @@ func setLxcfsProcess(processes exec.Processes) exec.Processes {
 		},
 	}
 	processes = append(processes, p)
-	cfg.LxcfsHome = strings.TrimSuffix(cfg.LxcfsHome, "/")
-
-	lxcfs.IsLxcfsEnabled = cfg.IsLxcfsEnabled
-	lxcfs.LxcfsHomeDir = cfg.LxcfsHome
-	lxcfs.LxcfsParentDir = path.Dir(cfg.LxcfsHome)
 
 	return processes
 }
@@ -238,18 +232,12 @@ func checkLxcfsCfg() error {
 		return fmt.Errorf("invalid lxcfs home dir: %s", cfg.LxcfsHome)
 	}
 
-	if _, err := os.Stat(cfg.LxcfsBinPath); err != nil {
-		return fmt.Errorf("invalid lxcfs bin path: %s", cfg.LxcfsBinPath)
-	}
+	cfg.LxcfsHome = strings.TrimSuffix(cfg.LxcfsHome, "/")
+	lxcfs.IsLxcfsEnabled = cfg.IsLxcfsEnabled
+	lxcfs.LxcfsHomeDir = cfg.LxcfsHome
+	lxcfs.LxcfsParentDir = path.Dir(cfg.LxcfsHome)
 
-	if _, err := os.Stat(cfg.LxcfsHome); err != nil {
-		if os.IsNotExist(err) {
-			if err := os.MkdirAll(cfg.LxcfsHome, 0755); err != nil {
-				return fmt.Errorf("failed to LxcfsHome %s: %v", cfg.LxcfsHome, err)
-			}
-		}
-	}
-	return nil
+	return lxcfs.CheckLxcfsMount()
 }
 
 // load daemon config file
