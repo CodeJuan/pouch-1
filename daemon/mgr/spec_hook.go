@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -63,6 +64,11 @@ func setupHook(ctx context.Context, c *Container, specWrapper *SpecWrapper) erro
 	// set volume mount tab
 	if err := setMountTab(ctx, c, specWrapper); err != nil {
 		return errors.Wrap(err, "failed to set volume mount tab prestart hook")
+	}
+
+	// set nvidia config
+	if err := setNvidiaHook(ctx, c, specWrapper); err != nil {
+		return errors.Wrap(err, "failed to set nvidia prestart hook")
 	}
 
 	return nil
@@ -150,6 +156,24 @@ func setMountTab(ctx context.Context, c *Container, spec *SpecWrapper) error {
 	}
 	spec.s.Hooks.Prestart = append(spec.s.Hooks.Prestart, mtabPrestart)
 
+	return nil
+}
+
+func setNvidiaHook(ctx context.Context, c *Container, spec *SpecWrapper) error {
+	n := c.HostConfig.NvidiaConfig
+	if n == nil {
+		return nil
+	}
+	path, err := exec.LookPath("nvidia-container-runtime-hook")
+	if err != nil {
+		return err
+	}
+	args := []string{path}
+	nvidiaPrestart := specs.Hook{
+		Path: path,
+		Args: append(args, "prestart"),
+	}
+	spec.s.Hooks.Prestart = append(spec.s.Hooks.Prestart, nvidiaPrestart)
 	return nil
 }
 

@@ -2,10 +2,14 @@ package mgr
 
 import (
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
 
 	"github.com/alibaba/pouch/apis/types"
 	"github.com/alibaba/pouch/daemon/logger/syslog"
 	"github.com/alibaba/pouch/pkg/system"
+	"github.com/alibaba/pouch/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -18,6 +22,10 @@ func (mgr *ContainerManager) validateConfig(c *Container, update bool) ([]string
 	warns, err := validateResource(&hostConfig.Resources, update)
 	if err != nil {
 		return nil, err
+	}
+	// validates nvidia config
+	if err := validateNvidiaConfig(hostConfig); err != nil {
+		return warnings, err
 	}
 	warnings = append(warnings, warns...)
 
@@ -187,4 +195,77 @@ func (mgr *ContainerManager) validateLogConfig(c *Container) error {
 	default:
 		return fmt.Errorf("not support (%v) log driver yet", logCfg.LogDriver)
 	}
+}
+
+// validateNvidiaConfig
+func validateNvidiaConfig(hostConfig *types.HostConfig) error {
+	r := &hostConfig.Resources
+	if r.NvidiaConfig == nil {
+		return nil
+	}
+
+	if err := validateNvidiaDriver(r); err != nil {
+		return err
+	}
+
+	if err := validateNvidiaDevice(hostConfig); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateNvidiaDriver(r *types.Resources) error {
+	n := r.NvidiaConfig
+	n.NvidiaDriverCapabilities = strings.TrimSpace(n.NvidiaDriverCapabilities)
+	if n.NvidiaDriverCapabilities == "" {
+		// use default driver capability: utility
+		return nil
+	}
+
+	if n.NvidiaDriverCapabilities == "all" {
+		// enable all capabilities
+		return nil
+	}
+
+	supportedDrivers := []string{"compute", "compat32", "graphics", "utility", "video", "display"}
+	drivers := strings.Split(n.NvidiaDriverCapabilities, ",")
+	for _, d := range drivers {
+		d = strings.TrimSpace(d)
+		found := utils.StringInSlice(supportedDrivers, d)
+		if !found {
+			return fmt.Errorf("invalid nvidia driver capability (%s)", d)
+		}
+	}
+	return nil
+}
+
+func validateNvidiaDevice(hostConfig *types.HostConfig) error {
+	n := hostConfig.Resources.NvidiaConfig
+	n.NvidiaVisibleDevices = strings.TrimSpace(n.NvidiaVisibleDevices)
+
+	// none: no GPU will be accessible, but driver capabilities will be enabled.
+	// void or empty: no GPU will be accessible, and driver capabilities will be disabled.
+	// all: all GPUs will be accessible
+	if n.NvidiaDriverCapabilities == "" {
+		return nil
+	}
+	supportedDevices := []string{"all", "none", "void"}
+	found := utils.StringInSlice(supportedDevices, n.NvidiaVisibleDevices)
+	if found {
+		return nil
+	}
+	devs := strings.Split(n.NvidiaVisibleDevices, ",")
+	for _, dev := range devs {
+		dev = strings.TrimSpace(dev)
+		if _, err := strconv.Atoi(dev); err == nil {
+			//dev is numeric, the realDev should be /dev/nvidiaN
+			realDev := fmt.Sprintf("/dev/nvidia%s", dev)
+			if _, err := os.Stat(realDev); err != nil {
+				return fmt.Errorf("invalid nvidia device %s", realDev)
+			}
+		}
+		// TODO: how to validate GPU UUID
+	}
+	return nil
 }
