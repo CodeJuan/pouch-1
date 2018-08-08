@@ -208,7 +208,7 @@ func validateNvidiaConfig(hostConfig *types.HostConfig) error {
 		return err
 	}
 
-	if err := validateNvidiaDevice(hostConfig); err != nil {
+	if err := validateNvidiaDevice(r); err != nil {
 		return err
 	}
 
@@ -240,8 +240,8 @@ func validateNvidiaDriver(r *types.Resources) error {
 	return nil
 }
 
-func validateNvidiaDevice(hostConfig *types.HostConfig) error {
-	n := hostConfig.Resources.NvidiaConfig
+func validateNvidiaDevice(r *types.Resources) error {
+	n := r.NvidiaConfig
 	n.NvidiaVisibleDevices = strings.TrimSpace(n.NvidiaVisibleDevices)
 
 	// none: no GPU will be accessible, but driver capabilities will be enabled.
@@ -255,6 +255,8 @@ func validateNvidiaDevice(hostConfig *types.HostConfig) error {
 	if found {
 		return nil
 	}
+
+	// 0,1,2, GPU-fef8089b …: a comma-separated list of GPU UUID(s) or index(es).
 	devs := strings.Split(n.NvidiaVisibleDevices, ",")
 	for _, dev := range devs {
 		dev = strings.TrimSpace(dev)
