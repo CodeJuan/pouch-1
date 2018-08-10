@@ -515,6 +515,10 @@ paths:
           description: "no error"
         404:
           $ref: "#/responses/404ErrorResponse"
+        409:
+          description: "container is paused"
+          schema:
+            $ref: "#/definitions/Error"
         500:
           $ref: "#/responses/500ErrorResponse"
       tags: ["Container"]
@@ -1964,7 +1968,12 @@ definitions:
         description: "Initial script executed in container. The script will be executed before entrypoint or command"
       DiskQuota:
         type: "object"
-        description: "Set disk quota for container"
+        description: |
+          Set disk quota for container.
+          Key is the dir in container.
+          Value is disk quota size for the dir.
+          / means rootfs dir in container.
+          .* includes rootfs dir and all volume dir.
         x-nullable: true
         additionalProperties:
           type: "string"
@@ -1975,7 +1984,10 @@ definitions:
           type: "string"
       QuotaID:
         type: "string"
-        description: "set disk quota by specified quota id, if id < 0, it means pouchd alloc a unique quota id"
+        description: |
+          Set disk quota by specified quota id. 
+          If QuotaID <= 0, it means pouchd should allocate a unique quota id by sequence automatically.
+          By default, a quota ID is mapped to only one container. And one quota ID can include several mountpoint.
       NetPriority:
         description: "net priority."
         type: "integer"
@@ -2261,9 +2273,9 @@ definitions:
   Resources:
     description: "A container's resources (cgroups config, ulimits, etc)"
     type: "object"
-    required: [CPUShares, Memory, CgroupParent, BlkioWeight, CPUPeriod, CPUQuota, CpuRealtimePeriod, 
+    required: [CpuShares, Memory, CgroupParent, BlkioWeight, CpuPeriod, CpuQuota, CpuRealtimePeriod, 
     CpuRealtimeRuntime, CpusetCpus, CpusetMems, DeviceCgroupRules, KernelMemory, MemoryReservation, 
-    MemorySwap, MemorySwappiness, NanoCPUs, OomKillDisable, PidsLimit, CpuCount, CpuPercent, 
+    MemorySwap, MemorySwappiness, NanoCpus, OomKillDisable, PidsLimit, CpuCount, CpuPercent, 
     IOMaximumIOps, IOMaximumBandwidth, IntelRdtL3Cbm, ScheLatSwitch, MemoryWmarkRatio, MemoryExtra, 
     MemoryForceEmptyCtl]
     properties:
@@ -2309,11 +2321,11 @@ definitions:
         type: "array"
         items:
           $ref: "#/definitions/ThrottleDevice"
-      CPUShares:
+      CpuShares:
         description: "An integer value representing this container's relative CPU weight versus other containers."
         type: "integer"
         x-nullable: false
-      CPUPeriod:
+      CpuPeriod:
         description: |
           CPU CFS (Completely Fair Scheduler) period.
           The length of a CPU period in microseconds.
@@ -2322,7 +2334,7 @@ definitions:
         minimum: 1000
         maximum: 1000000
         x-nullable: false
-      CPUQuota:
+      CpuQuota:
         description: |
           CPU CFS (Completely Fair Scheduler) quota.
           Microseconds of CPU time that the container can get in a CPU period."
@@ -2386,7 +2398,7 @@ definitions:
         format: "int64"
         minimum: 0
         maximum: 100
-      NanoCPUs:
+      NanoCpus:
         description: "CPU quota in units of 10<sup>-9</sup> CPUs."
         type: "integer"
         format: "int64"
@@ -2471,6 +2483,29 @@ definitions:
         x-nullable: false
         minimum: 0
         maximum: 1
+      NvidiaConfig:
+        $ref: "#/definitions/NvidiaConfig"
+
+  NvidiaConfig:
+    type: "object"
+    properties:
+      NvidiaVisibleDevices:
+        description: "NvidiaVisibleDevices controls which GPUs will be made accessible inside the container"
+        type: "string"
+        example: |
+                  Possible values.
+                  0,1,2, GPU-fef8089b …: a comma-separated list of GPU UUID(s) or index(es).
+                  all: all GPUs will be accessible, this is the default value in our container images.
+                  none: no GPU will be accessible, but driver capabilities will be enabled.
+        x-nullable: false
+      NvidiaDriverCapabilities:
+        description: "NvidiaDriverCapabilities controls which driver libraries/binaries will be mounted inside the container"
+        type: "string"
+        example: |
+                  Possible values
+                  compute,video, graphics,utility …: a comma-separated list of driver features the container needs.
+                  all: enable all available driver capabilities.
+        x-nullable: false
 
   ThrottleDevice:
     type: "object"
@@ -3588,6 +3623,58 @@ definitions:
           type: "array"
           items:
             type: "string"
+
+  EventsMessage:
+    description: |
+      EventsMessage represents the information an event contains, the message
+      at least contains type, action and id. type specifies which object generates
+      the event, like container, or a network, or a volume. the action specifies
+      the action name, like create, or destroy. the id identifies the object that
+      generates the event.
+      The message also can contain the EventsActor that describes the extra
+      attributes that describe the event.
+    type: "object"
+    properties:
+      status:
+        type: "string"
+      id:
+        type: "string"
+      from:
+        type: "string"
+      type:
+        $ref: "#/definitions/EventType"
+      action:
+        type: "string"
+      actor:
+        $ref: "#/definitions/EventsActor"
+      time:
+        type: "integer"
+      timeNano:
+        type: "integer"
+
+  EventsActor:
+    description: |
+      EventsActor describes something that generates events,
+      like a container, or a network, or a volume.
+      It has a defined name and a set or attributes.
+      The container attributes are its labels, other actors
+      can generate these attributes from other properties.
+    type: "object"
+    properties:
+      ID:
+        type: "string"
+      Attributes:
+        type: "object"
+        additionalProperties:
+          type: "string"
+
+  EventType:
+    description: |
+      The type of event. For example, "container" or "image",
+      Now we only support container, image, network and volume events.
+    type: "string"
+    enum: ["container", "daemon", "image", "network", "plugin", "volume"]
+
 
 parameters:
   id:

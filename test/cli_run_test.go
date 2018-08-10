@@ -401,7 +401,7 @@ func (suite *PouchRunMemorySuite) TestRunWithShm(c *check.C) {
 	res = command.PouchRun("exec", containerID, "df", "-k", "/dev/shm")
 	res.Assert(c, icmd.Success)
 
-	util.PartialEqual(res.Stdout(), "1048576")
+	c.Assert(util.PartialEqual(res.Stdout(), "1048576"), check.IsNil)
 }
 
 // TestRunSetRunningFlag is to verfy whether set Running Flag in ContainerState
@@ -421,4 +421,25 @@ func (suite *PouchRunSuite) TestRunSetRunningFlag(c *check.C) {
 		c.Errorf("failed to decode inspect output: %v", err)
 	}
 	c.Assert(result[0].State.Running, check.Equals, true)
+}
+
+func (suite *PouchRunSuite) TestRunWithMtab(c *check.C) {
+	cname := "TestRunWithMtab"
+	volumeName := "TestRunWithMtabVolume"
+	dest := "/mnt/" + volumeName
+
+	command.PouchRun("volume", "create", "--name", volumeName).Assert(c, icmd.Success)
+	defer command.PouchRun("volume", "rm", volumeName).Assert(c, icmd.Success)
+
+	ret := command.PouchRun("run", "--rm", "--name", cname, "-v", volumeName+":"+dest, busyboxImage, "cat", "/etc/mtab").Assert(c, icmd.Success)
+	ret.Assert(c, icmd.Success)
+
+	found := false
+	for _, line := range strings.Split(ret.Stdout(), "\n") {
+		if strings.Contains(line, dest) {
+			found = true
+			break
+		}
+	}
+	c.Assert(found, check.Equals, true)
 }
